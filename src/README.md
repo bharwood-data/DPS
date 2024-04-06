@@ -1,10 +1,13 @@
 # Bias Simulation Files
 
-This folder contains the source files for conducting bias simulation experiments in [insert project/research name].
+This folder contains the source files for conducting bias simulation experiments. 
 
 ## Overview
 
-The bias simulation files are part of a research project aimed at studying the effects of various biases on [describe the system or phenomenon being studied]. The simulations allow researchers to model different types of biases, such as self-selection bias and status quo bias, and analyze their impact on the outcomes of interest.
+The bias simulation files are part of a research project aimed at studying the effects of various biases on Markov chain transition probability estimation. The simulations allow researchers to model different types of biases, such as self-selection bias and status quo bias, and analyze their impact on the outcomes of interest. Each files produces a variety of simulations based on user provide agent, observation, and state counts, as well as different user-provided levels of missing data. The simulations generate biased Markov chain observations and extract the transition matrix based on the so-called "na&iuml;ve" approach:
+
+$$p_{ij}=\frac{\eta_{ij}}{\sum_{j}{\eta_{ij}}}$$
+where $\eta_{ij}$ is the number of times state $i$ is followed by state $j$. The estimated matrix is then compared to the matrix used to generate the data with both the Kullback divergence and a custom metric based on the Frobenius norm. The option to use the forward-algorithm for data imputation prior to estimationg is available, as is estimation via the EM-algorithm.
 
 ## Contents
 
