@@ -196,43 +196,54 @@ def generate_outlier_matrix(num_states, outlier_state1, outlier_state2):
     except Exception as e:
         raise ValueError(f"Error in generating outlier matrix: {e}")
     
-def outlier_append(shared_lists: tuple, states: int, missing_percentage: float, standard_time: float, KL: float, 
-                   inaccuracy: float, N: int, T: int, imputed_data: pd.DataFrame, em_data: pd.DataFrame, 
-                   em_time: float, imputation_time: float, vocal_group: str) -> tuple:
+def outlier_append(states_list, states, missing_list, pct, time_list, standard_time, KL_list, KL, inaccuracy_list, inaccuracy,
+                   agents_list, N, obs_list, T, vocal_list, vocal_group, imputed_list=None, imputed=None, em_list=None, em=None, emTime_list=None, emTime=None, 
+                    imputed_time_list=None, imputedTime=None):
     """
     Appends outlier scenario results to shared lists.
 
+    Appends simulation results such as states, missing data percentage, time taken, KL divergence, inaccuracy, number of agents, number of observations, imputed data, EM algorithm results, EM execution time, imputation time, and vocal group type to shared lists.
+
     Args:
-        shared_lists (tuple): Tuple of shared lists to append results to.
+        states_list (list): List to append states to.
         states (int): Number of states.
-        missing_percentage (float): Percentage of missing data.
+        missing_list (list): List to append missing data percentage to.
+        pct (float): Percentage of missing data.
+        time_list (list): List to append time taken for the simulation to.
         standard_time (float): Time taken for the simulation.
+        KL_list (list): List to append KL divergence to.
         KL (float): Kullback-Leibler divergence value.
+        inaccuracy_list (list): List to append inaccuracy to.
         inaccuracy (float): Inaccuracy value.
+        agents_list (list): List to append number of agents to.
         N (int): Number of agents.
+        obs_list (list): List to append number of observations to.
         T (int): Number of observations.
-        imputed_data (pd.DataFrame): DataFrame containing imputed data.
-        em_data (pd.DataFrame): DataFrame containing EM algorithm results.
-        em_time (float): Time taken for EM algorithm.
-        imputation_time (float): Time taken for imputation.
+        vocal_list (list): List to append vocal group type to.
         vocal_group (str): Vocal group type.
+        imputed_list (list, optional): List to append imputed data to (default: None).
+        imputed (pd.DataFrame, optional): DataFrame containing imputed data (default: None).
+        em_list (list, optional): List to append EM algorithm results to (default: None).
+        em (pd.DataFrame, optional): DataFrame containing EM algorithm results (default: None).
+        emTime_list (list, optional): List to append EM execution time to (default: None).
+        emTime (float, optional): Time taken for EM algorithm (default: None).
+        imputed_time_list (list, optional): List to append imputation time to (default: None).
+        imputedTime (float, optional): Time taken for imputation (default: None).
 
     Returns:
-        tuple: Tuple of updated shared lists.
-    """
-    try:
-        # Unpack shared lists
-        states_list, missing_list, time_list, KL_list, inaccuracy_list, agents_list, obs_list, imputed_list, \
-            em_list, emTime_list, imputed_time_list, vocal_list = shared_lists
-        
-        # Type checking for shared_lists
-        if not isinstance(shared_lists, tuple):
-            raise TypeError("shared_lists must be a tuple")
+        tuple: Tuple of updated shared lists containing simulation results.
 
+    Raises:
+        ValueError: If any of the arguments have invalid types or values.
+    """
+
+    try:
+        
+        
         # Type checking and value validation for each argument
         if not isinstance(states, int) or states <= 0:
             raise ValueError("states must be a positive integer")
-        if not isinstance(missing_percentage, float) or not 0 <= missing_percentage <= 100:
+        if not isinstance(pct, float) or not 0 <= pct <= 100:
             raise ValueError("missing_percentage must be a float between 0 and 100")
         if not isinstance(standard_time, float) or standard_time < 0:
             raise ValueError("standard_time must be a non-negative float")
@@ -244,30 +255,38 @@ def outlier_append(shared_lists: tuple, states: int, missing_percentage: float, 
             raise ValueError("N must be a positive integer")
         if not isinstance(T, int) or T <= 0:
             raise ValueError("T must be a positive integer")
-        if not isinstance(imputed_data, pd.DataFrame):
+        if not isinstance(imputed, pd.DataFrame):
             raise TypeError("imputed_data must be a pandas DataFrame")
-        if not isinstance(em_data, pd.DataFrame):
+        if not isinstance(em, pd.DataFrame):
             raise TypeError("em_data must be a pandas DataFrame")
-        if not isinstance(em_time, float) or em_time < 0:
+        if not isinstance(emTime, float) or emTime < 0:
             raise ValueError("em_time must be a non-negative float")
-        if not isinstance(imputation_time, float) or imputation_time < 0:
+        if not isinstance(imputedTime, float) or imputedTime < 0:
             raise ValueError("imputation_time must be a non-negative float")
         if not isinstance(vocal_group, str):
             raise TypeError("vocal_group must be a string")
 
         # Append results to shared lists
         states_list.append(states)
-        missing_list.append(missing_percentage)
+        missing_list.append(pct)
         time_list.append(standard_time)
         KL_list.append(KL)
         inaccuracy_list.append(inaccuracy)
         agents_list.append(N)
         obs_list.append(T)
-        imputed_list.append(imputed_data)
-        em_list.append(em_data)
-        emTime_list.append(em_time)
-        imputed_time_list.append(imputation_time)
         vocal_list.append(vocal_group)
+        # Append imputation result if available
+        if imputed_list is not None:
+            imputed_list.append(imputed)
+        # Append EM result if available
+        if em_list is not None:
+            em_list.append(em)
+        # Append EM execution time if available
+        if emTime_list is not None:
+            emTime_list.append(emTime)
+        # Append imputation execution time if available
+        if imputed_time_list is not None:
+            imputed_time_list.append(imputedTime)
 
         # Return updated shared lists
         return states_list, missing_list, time_list, KL_list, inaccuracy_list, agents_list, \
@@ -278,26 +297,32 @@ def outlier_append(shared_lists: tuple, states: int, missing_percentage: float, 
 
 def process_outlier(states, N, T, unaff, missing_range, imputation=False, optimization=False, em_iterations=None, tol=None):
     """
-    Runs outlier scenario simulations and appends results.
+    Processes outlier scenario simulations and appends results.
 
-    The function assigns agents to groups, generates Markov chains, 
-    introduces outlier bias, calculates RMSE, and appends results to 
-    shared lists after each run.
+    Simulates Markov chains with outlier bias, introducing missing data and performing imputation and optimization if enabled.
 
     Args:
-        states (int): Number of states
-        N (int): Number of agents
-        T (int): Number of time steps
-        unaff (float): Proportion of unaffiliated agents
-        missing_range (tuple): Range of missing data percentages
-        imputation (bool, optional): Flag indicating whether to perform imputation. Defaults to False
-        optimization (bool, optional): Flag indicating whether to perform optimization. Defaults to False
-        em_iterations (int, optional): Number of iterations for the EM algorithm. Defaults to None
-        tol (float, optional): Tolerance parameter for optimization algorithms. Defaults to None
-    
+        states (int): Number of states.
+        N (int): Number of agents.
+        T (int): Number of observations.
+        unaff (float): Proportion of unaffiliated agents.
+        missing_range (list): Range of missing data percentages.
+        imputation (bool): Flag to perform imputation (default: False).
+        optimization (bool): Flag to perform optimization (default: False).
+        em_iterations (int): Number of iterations for EM algorithm (default: None).
+        tol (float): Tolerance value for optimization (default: None).
+
     Returns:
-        tuple: Tuple of updated shared lists
+        Tuple of updated shared lists containing simulation results.
+
+    Raises:
+        ValueError: If states, N, T, unaff, or em_iterations are invalid,
+                    if missing_range is not a list of two floats,
+                    if imputation or optimization are not booleans,
+                    if tol is not a non-negative float or None,
+                    or if any unexpected errors occur during processing.
     """
+
     try:
         # Type checking and value validation for input arguments
         if not isinstance(states, int) or states <= 0:
@@ -308,7 +333,7 @@ def process_outlier(states, N, T, unaff, missing_range, imputation=False, optimi
             raise ValueError("T must be a positive integer")
         if not isinstance(unaff, float) or not 0 <= unaff <= 1:
             raise ValueError("unaff must be a float between 0 and 1")
-        if not isinstance(missing_range, tuple) or len(missing_range) != 2 or not all(isinstance(val, float) for val in missing_range):
+        if not isinstance(missing_range, list) or len(missing_range) != 2 or not all(isinstance(val, float) for val in missing_range):
             raise ValueError("missing_range must be a tuple of two floats")
         if not isinstance(imputation, bool):
             raise TypeError("imputation must be a boolean")
@@ -360,7 +385,7 @@ def process_outlier(states, N, T, unaff, missing_range, imputation=False, optimi
         chains = generate_markov_chains(observed, initial_states, T, N)
         
         # Iterate over vocal groups and missing percentage ranges
-        for loud, pct in list(itertools.product(["min", 'maj'], np.linspace(missing_range[0], missing_range[1]))):
+        for loud, pct in list(itertools.product(["min", 'maj'], missing_range)):
             # Introduce outlier bias and record time
             result = pd.DataFrame(introduce_outlier_bias(chains, outliers, group4, loud, pct))
             start = time.time()
@@ -384,12 +409,11 @@ def process_outlier(states, N, T, unaff, missing_range, imputation=False, optimi
                         states_list, states, missing_list, pct, time_list, end - start, KL_list,
                         kl_divergence(estimated, observed, states), inaccuracy_list,
                         np.linalg.norm(estimated - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)), 
-                        agents_list, N, obs_list, T, imputed_list if imputation else None,
+                        agents_list, N, obs_list, T, vocal_list, loud, imputed_list if imputation else None,
                         np.linalg.norm(estimated_imputed - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if imputation else None,
                         em_list if optimization else None,
                         np.linalg.norm(estimated_em - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if optimization else None,
-                        emTime_list, end_em - start if optimization else None, imputed_time_list, end_impute - start if imputation else None,
-                        vocal_list, loud)
+                        emTime_list, end_em - start if optimization else None, imputed_time_list, end_impute - start if imputation else None)
                         
         return states_list, missing_list, time_list, KL_list, inaccuracy_list, agents_list, obs_list, imputed_list, em_list, emTime_list, imputed_time_list, vocal_list
 
