@@ -29,7 +29,7 @@ import itertools
 import random
 
 from bmcUtils import generate_markov_chains, apply_self_selection_bias \
-    , introduce_mcar_missing_data, extract_transition_matrix, kl_divergence
+    , introduce_mcar_missing_data, extract_transition_matrix, kl_divergence, is_valid_transition_matrix
 import bmcSpecial as bmc
 
 def introduce_status_quo_bias(transition_matrix: np.ndarray, num_states: int, num_agents: int, cbf: float, obs: int):
@@ -92,26 +92,44 @@ def introduce_status_quo_bias(transition_matrix: np.ndarray, num_states: int, nu
     return transition_matrix, generate_markov_chains(transition_matrix, initial_states, obs, num_agents)
 
 def status_quo_Append(states_list, states, missing_list, pct, time_list, standard_time, KL_list, KL, inaccuracy_list, inaccuracy, ss_ratio_list, r,
-                   agents_list, N, obs_list, T, imputed_list, cbf_list, cbf, imputed, em_list, em, emTime_list, emTime, imputed_time_list, imputeTime):
-    """Appends status_quo bias results to shared lists.
+                   agents_list, N, obs_list, T, imputed_list, cbf_list, cbf, imputed = None, em_list = None, em = None, emTime_list = None, emTime = None, 
+                   imputed_time_list = None, imputedTime = None):
+    """
+    Append simulation results for the status quo scenario.
 
-    The function appends states, missing %, RMSE, agents,  
-    observations, self-selection type, self-selection ratio,
-    status_quo bias factor to their respective shared lists.
+    This function appends simulation results for the status quo scenario to the corresponding lists. It checks the types of input arguments and ensures 
+    consistency in appending the results.
 
     Args:
-    shared_lists: Shared lists to append results to
-    states: Number of states
-    pct: Percent missing data
-    rmse: Root mean squared error 
-    N: Number of agents
-    T: Number of observations
-    ss: Self-selection type
-    ss_ratio: Self-selection ratio
-    cbf: status_quo bias factor
-    
+        states_list (list): List to store the number of states.
+        states (int): Number of states.
+        missing_list (list): List to store missing data percentages.
+        pct (float): Missing data percentage.
+        time_list (list): List to store execution times.
+        standard_time (float): Execution time.
+        KL_list (list): List to store KL divergences.
+        KL (float): KL divergence.
+        inaccuracy_list (list): List to store inaccuracies.
+        inaccuracy (float): Inaccuracy.
+        ss_ratio_list (list): List to store self-selection ratios.
+        r (float): Self-selection ratio.
+        agents_list (list): List to store number of agents.
+        N (int): Number of agents.
+        obs_list (list): List to store number of observations.
+        T (int): Number of observations.
+        imputed_list (list): List to store imputed results.
+        cbf_list (list): List to store status quo bias factors.
+        cbf (float): Status quo bias factor.
+        imputed (list or np.ndarray, optional): Imputed results. Defaults to None.
+        em_list (list or np.ndarray, optional): EM results. Defaults to None.
+        em (list or np.ndarray, optional): EM results. Defaults to None.
+        emTime_list (list): List to store EM execution times.
+        emTime (float): EM execution time.
+        imputed_time_list (list): List to store imputation execution times.
+        imputedTime (float): Imputation execution time.
+
     Returns:
-    Tuple of updated shared lists
+        tuple: Tuple containing updated lists of simulation results.
     """
     
     # Type checks
@@ -139,10 +157,18 @@ def status_quo_Append(states_list, states, missing_list, pct, time_list, standar
     ss_ratio_list.append(r)
     agents_list.append(N)
     obs_list.append(T)
-    imputed_list.append(imputed)
-    em_list.append(em)
-    emTime_list.append(emTime)
-    imputed_time_list.append(imputeTime)
+    # Append imputation result if available
+    if imputed_list is not None:
+        imputed_list.append(imputed)
+    # Append EM result if available
+    if em_list is not None:
+        em_list.append(em)
+    # Append EM execution time if available
+    if emTime_list is not None:
+        emTime_list.append(emTime)
+    # Append imputation execution time if available
+    if imputed_time_list is not None:
+        imputed_time_list.append(imputedTime)
     cbf_list.append(cbf)
     
     return states_list, missing_list, time_list, KL_list, inaccuracy_list, ss_ratio_list, agents_list, obs_list, cbf_list, imputed_list, em_list, emTime_list, imputed_time_list
@@ -150,96 +176,102 @@ def status_quo_Append(states_list, states, missing_list, pct, time_list, standar
 
 def process_status_quo(states, N, T, ss_range, missing_range, cbf_range, imputation = False, optimization = False, em_iterations = None, tol = None):
     """
-    Runs status_quo bias simulations and appends results.
+    Process status quo scenario.
 
-    The function introduces status_quo bias, missing data, 
-    and self-selection, calculates RMSE, and appends results 
-    to shared lists after each run.
+    This function simulates a scenario considering status quo bias in a Markov chain. It introduces status quo bias to the transition matrix based on given parameters
+    and computes various metrics such as KL divergence and inaccuracy. It supports optional imputation and optimization steps.
 
     Args:
-    states (int): Number of states.
-    N (int): Number of agents.
-    T (int): Number of time steps.
-    ss_range (tuple): Tuple containing the range of self-selection factors.
-    missing_range (tuple): Tuple containing the range of missing data percentages.
-    cbf_range (tuple): Tuple containing the range of status_quo bias factors.
-    imputation (bool, optional): Flag indicating whether to perform imputation. Defaults to False.
-    optimization (bool, optional): Flag indicating whether to perform optimization. Defaults to False.
-    em_iterations (int, optional): Number of iterations for the EM algorithm. Defaults to None.
-    tol (float, optional): Tolerance parameter for optimization algorithms. Defaults to None.
+        states (int): Number of states.
+        N (int): Number of agents.
+        T (int): Number of observations.
+        ss_range (list): Range of self-selection factors.
+        missing_range (list): Range of missing data percentages.
+        cbf_range (list): Range of status quo bias factors.
+        imputation (bool, optional): Flag indicating whether to perform imputation. Defaults to False.
+        optimization (bool, optional): Flag indicating whether to perform optimization. Defaults to False.
+        em_iterations (int, optional): Number of EM algorithm iterations. Defaults to None.
+        tol (float, optional): Tolerance for convergence in optimization. Defaults to None.
 
     Returns:
-    tuple: Tuple of updated shared lists.
+        tuple: Tuple containing lists of simulation results including states, missing data percentages, execution times, KL divergences, inaccuracy,
+               self-selection ratios, number of agents, number of observations, status quo bias factors, imputed results, EM results, and times for imputation and EM steps.
     """
 
     # Type checks for function arguments
     if not isinstance(states, int) or not isinstance(N, int) or not isinstance(T, int) \
-            or not isinstance(ss_range, tuple) or not isinstance(missing_range, tuple) \
-            or not isinstance(cbf_range, tuple) or not isinstance(imputation, bool) \
+            or not isinstance(ss_range, list) or not isinstance(missing_range, list) \
+            or not isinstance(cbf_range, list) or not isinstance(imputation, bool) \
             or not isinstance(optimization, bool) \
             or (em_iterations is not None and not isinstance(em_iterations, int)) \
             or (tol is not None and not isinstance(tol, float)):
         raise ValueError("Incorrect type for one or more arguments.")
 
-    # Check the elements in the ranges
-    for val in ss_range + missing_range + cbf_range:
-        if not isinstance(val, (int, float)):
-            raise ValueError("Elements in ss_range and pct_range must be integers or floats.")
-        
-    # Initialize lists to store simulation results
-    states_list = []
-    missing_list = []
-    emTime_list = []
-    KL_list = []
-    inaccuracy_list = []
-    ss_ratio_list = []
-    agents_list = []
-    obs_list = []
-    cbf_list = []
-    imputed_list = []
-    em_list = []
-    time_list = []
-    imputed_time_list = []
-    
-    # Initialize transition matrix
-    initial_matrix = np.ones([states, states])
-    
-    # Iterate over combinations of self-selection factor, missing data percentage, and status_quo bias factor
-    for r, pct, cbf in list(itertools.product(np.linspace(ss_range[0], ss_range[1]), np.linspace(missing_range[0], missing_range[1]), np.linspace(cbf_range[0], cbf_range[1]))):
-        
-        # Exclude cases where self-selection is non-zero but missing data percentage is 0
-        if not (pct == 0 and r > 0):
-            # Introduce status_quo bias into the transition matrix
-            observed, data = introduce_status_quo_bias(initial_matrix, states, N, cbf, T)
-            # Apply self-selection bias to the data
-            ss = apply_self_selection_bias(data, r, N, T, pct)
-            # Introduce missing data using MCAR mechanism
-            result = pd.DataFrame(introduce_mcar_missing_data(pd.DataFrame(ss), pct))
-            # Start time for simulation
-            start = time.time()
-            # Estimate transition matrix from the data
-            estimated = extract_transition_matrix(pd.DataFrame(result), states)
-            # End time for simulation
-            end = time.time()
-            # Perform imputation if flag is set
-            final = bmc.forward_algorithm(result, estimated, T, states) if imputation else None
-            # Calculate estimated transition matrix after imputation
-            estimated_imputed = extract_transition_matrix(final, states) if imputation else None
-            # End time for imputation
-            end_impute = time.time() if imputation else None
-            # Perform optimization using EM algorithm if flag is set
-            estimated_em = bmc.em_algorithm(result, N, T, states, em_iterations, tol) if optimization else None
-            # End time for EM algorithm
-            end_em = time.time() if optimization else None
+    try:
+        # Check the elements in the ranges
+        for val in ss_range + missing_range + cbf_range:
+            if not isinstance(val, (int, float)):
+                raise ValueError("Elements in ss_range and pct_range must be integers or floats.")
             
-            # Append simulation results to lists
-            states_list, missing_list, emTime_list, time_list, inaccuracy_list, ss_ratio_list, agents_list, obs_list, imputed_list, \
-                em_list, imputed_time_list = status_quo_Append(
-                    states_list, states, missing_list, pct, time_list, end - start, KL_list,
-                    kl_divergence(estimated, observed, states), inaccuracy_list,
-                    np.linalg.norm(estimated - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)), ss_ratio_list, r,
-                    agents_list, N, obs_list, T, cbf_list, cbf, imputed_list if imputation else None,
-                    np.linalg.norm(estimated_imputed - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if imputation else None,
-                    em_list if optimization else None,
-                    np.linalg.norm(estimated_em - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if optimization else None,
-                    emTime_list, end_em - start if optimization else None, imputed_time_list, end_impute - start if imputation else None)
+        # Initialize lists to store simulation results
+        states_list = []
+        missing_list = []
+        emTime_list = []
+        KL_list = []
+        inaccuracy_list = []
+        ss_ratio_list = []
+        agents_list = []
+        obs_list = []
+        cbf_list = []
+        imputed_list = []
+        em_list = []
+        time_list = []
+        imputed_time_list = []
+        
+        # Initialize transition matrix
+        initial_matrix = np.ones([states, states])
+        
+        # Iterate over combinations of self-selection factor, missing data percentage, and status_quo bias factor
+        for r, pct, cbf in list(itertools.product(ss_range, missing_range, cbf_range)):
+            
+            # Exclude cases where self-selection is non-zero but missing data percentage is 0
+            if not (pct == 0 and r > 0):
+                # Introduce status_quo bias into the transition matrix
+                observed, data = introduce_status_quo_bias(initial_matrix, states, N, cbf, T)
+                # Apply self-selection bias to the data
+                ss = apply_self_selection_bias(data, r, N, T, pct)
+                # Introduce missing data using MCAR mechanism
+                result = pd.DataFrame(introduce_mcar_missing_data(pd.DataFrame(ss), pct))
+                # Start time for simulation
+                start = time.time()
+                # Estimate transition matrix from the data
+                estimated = extract_transition_matrix(pd.DataFrame(result), states)
+                # End time for simulation
+                end = time.time()
+                # Perform imputation if flag is set
+                final = bmc.forward_algorithm(result, estimated, T, states) if imputation else None
+                # Calculate estimated transition matrix after imputation
+                estimated_imputed = extract_transition_matrix(final, states) if imputation else None
+                # End time for imputation
+                end_impute = time.time() if imputation else None
+                # Perform optimization using EM algorithm if flag is set
+                estimated_em = bmc.em_algorithm(result, N, T, states, em_iterations, tol) if optimization else None
+                # End time for EM algorithm
+                end_em = time.time() if optimization else None
+                
+                # Append simulation results to lists
+                states_list, missing_list, emTime_list, time_list, inaccuracy_list, ss_ratio_list, agents_list, obs_list, imputed_list, \
+                    em_list, imputed_time_list = status_quo_Append(
+                        states_list, states, missing_list, pct, time_list, end - start, KL_list,
+                        kl_divergence(estimated, observed, states), inaccuracy_list,
+                        np.linalg.norm(estimated - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)), ss_ratio_list, r,
+                        agents_list, N, obs_list, T, cbf_list, cbf, imputed_list if imputation else None,
+                        np.linalg.norm(estimated_imputed - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if imputation else None,
+                        em_list if optimization else None,
+                        np.linalg.norm(estimated_em - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if optimization else None,
+                        emTime_list, end_em - start if optimization else None, imputed_time_list, end_impute - start if imputation else None)
+
+        return states_list, missing_list, time_list, KL_list, inaccuracy_list, ss_ratio_list, agents_list, obs_list, cbf_list, imputed_list, em_list, emTime_list, imputed_time_list, 
+
+    except Exception as e:
+        raise ValueError(f"Error in processing outlier scenario: {e}")
