@@ -43,13 +43,13 @@ import random
 from bmcUtils import generate_standard_transition_matrix, generate_initial_states, generate_markov_chains, \
     extract_transition_matrix, kl_divergence, kl_divergence, generate_random_prevalence_ratios, construct_weighted_transition_matrix, \
     generate_custom_initial_distribution, introduce_popularity_bias
-from bmcSpecial import forward_algorithm, em_algorithm
+import bmcSpecial as bmc
 
 def introduce_popularity_bias(d1, state_probabilities, desired_missing_pct, N, T, asc):
     """
-    Introduces missing data unbiasedd on state popularity.
+    Introduces missing data biased on state popularity.
 
-    Processes data to introduce missing values unbiasedd on specified state probabilities.
+    Processes data to introduce missing values biased on specified state probabilities.
     More popular states will have fewer missing values.
 
     Args:
@@ -131,54 +131,55 @@ def introduce_popularity_bias(d1, state_probabilities, desired_missing_pct, N, T
     except Exception as e:
         raise ValueError(f"An error occurred during popularity bias introduction: {e}")
     
-def popAppend(states_list, states, missing_list, pct, time_list, standard_time, KL_list, KL, inaccuracy_list, p, agents_list, N, obs_list, 
+def popAppend(states_list, states, missing_list, pct, time_list, standard_time, KL_list, KL, inaccuracy_list, inaccuracy, agents_list, N, obs_list, 
               T, popularity_list, popularity, imputed_list=None, imputed=None, em_list=None, em=None, emTime_list=None, emTime=None, 
               imputed_time_list=None, imputedTime=None):
     """
-    Appends popularity scenario results to shared lists.
+    Appends population scenario results to respective lists.
 
-    The function appends states, missing %, RMSE, agents,
-    observations, and ascending order to their respective
-    shared lists after each run.
+    This function appends various simulation results to their respective lists, including states, missing percentage, execution time, KL divergence,
+    inaccuracy, number of agents, number of observations, and popularity.
 
     Args:
-        states_list (list): Shared list to append states.
+        states_list (list): List to append the number of states to.
         states (int): Number of states.
-        missing_list (list): Shared list to append missing percentage.
-        pct (float): Percent missing data.
-        time_list (list): Shared list to append execution time.
-        standard_time (float): Time taken for execution.
-        KL_list (list): Shared list to append KL divergence.
+        missing_list (list): List to append the missing percentage to.
+        pct (float): Missing percentage.
+        time_list (list): List to append the execution time to.
+        standard_time (float): Execution time.
+        KL_list (list): List to append the KL divergence to.
         KL (float): KL divergence.
-        inaccuracy_list (list): Shared list to append inaccuracy.
-        p (float): Inaccuracy.
-        agents_list (list): Shared list to append number of agents.
+        inaccuracy_list (list): List to append the inaccuracy to.
+        inaccuracy (float): Inaccuracy.
+        agents_list (list): List to append the number of agents to.
         N (int): Number of agents.
-        obs_list (list): Shared list to append number of observations.
+        obs_list (list): List to append the number of observations to.
         T (int): Number of observations.
-        popularity_list (list): Shared list to append popularity.
-        popularity (bool): Popularity order.
-        imputed_list (list): Shared list to append imputation result (optional).
-        imputed (float): Imputation result (optional).
-        em_list (list): Shared list to append EM result (optional).
-        em (float): EM result (optional).
-        emTime_list (list): Shared list to append EM execution time (optional).
-        emTime (float): EM execution time (optional).
-        imputed_time_list (list): Shared list to append imputation execution time (optional).
-        imputedTime (float): Imputation execution time (optional).
+        popularity_list (list): List to append the popularity to.
+        popularity (float): Popularity.
+        imputed_list (list, optional): List to append the imputation result to. Defaults to None.
+        imputed: Imputation result. Defaults to None.
+        em_list (list, optional): List to append the EM result to. Defaults to None.
+        em: EM result. Defaults to None.
+        emTime_list (list, optional): List to append the EM execution time to. Defaults to None.
+        emTime (float, optional): EM execution time. Defaults to None.
+        imputed_time_list (list, optional): List to append the imputation execution time to. Defaults to None.
+        imputedTime (float, optional): Imputation execution time. Defaults to None.
 
     Returns:
-        tuple: Tuple of updated shared lists.
+        tuple: Tuple containing updated lists of simulation results.
     """
+    
     # Append states, missing %, execution time, KL divergence, inaccuracy, number of agents, number of observations, and popularity to respective lists
     states_list.append(states)
     missing_list.append(pct)
     time_list.append(standard_time)
     KL_list.append(KL)
-    inaccuracy_list.append(p)
+    inaccuracy_list.append(inaccuracy)
     popularity_list.append(popularity)
     agents_list.append(N)
     obs_list.append(T)
+    
     # Append imputation result if available
     if imputed_list is not None:
         imputed_list.append(imputed)
@@ -196,86 +197,109 @@ def popAppend(states_list, states, missing_list, pct, time_list, standard_time, 
        inaccuracy_list, agents_list, obs_list, popularity_list, \
        imputed_list, em_list, emTime_list, imputed_time_list
 
-def process_popularity(states, N, T, pct_range, imputation=False, optimization=False, em_iterations=None, tol=None):
+def process_popularity(states, N, T, missing_range, imputation=False, optimization=False, em_iterations=None, tol=None):
     """
-    Runs popularity scenario simulations and appends results.
+    Process popularity scenario.
 
-    The function generates Markov chains, introduces popularity bias, 
-    calculates RMSE, and appends results to shared lists after each run.
+    This function simulates a scenario considering popularity bias in a Markov chain. It introduces popularity bias to the Markov chain based on given parameters
+    and computes various metrics such as KL divergence and inaccuracy. It supports optional imputation and optimization steps.
 
     Args:
         states (int): Number of states.
         N (int): Number of agents.
-        T (int): Number of time steps.
-        pct_range (tuple): Range of missing data percentage.
-        imputation (bool): Whether to perform imputation (optional).
-        optimization (bool): Whether to perform optimization (optional).
-        em_iterations (int): Number of EM iterations (optional).
-        tol (float): Tolerance for optimization (optional).
+        T (int): Number of observations.
+        missing_range (list): Range of missing data percentages.
+        imputation (bool, optional): Flag indicating whether to perform imputation. Defaults to False.
+        optimization (bool, optional): Flag indicating whether to perform optimization. Defaults to False.
+        em_iterations (int, optional): Number of EM algorithm iterations. Defaults to None.
+        tol (float, optional): Tolerance for convergence in optimization. Defaults to None.
 
     Returns:
-        tuple: Tuple of updated shared lists.
+        tuple: Tuple containing lists of simulation results including states, missing data percentages, execution times, KL divergences, inaccuracy,
+               number of agents, number of observations, popularity, imputed results, EM results, and times for imputation and EM steps.
     """
-    # Initialize shared lists to store results
-    states_list = []
-    missing_list = []
-    emTime_list = []
-    KL_list = []
-    inaccuracy_list = []
-    popularity_list = []
-    agents_list = []
-    obs_list = []
-    imputed_list = []
-    em_list = []
-    time_list = []
-    imputed_time_list = []
     
-    # Generate observed transition matrix
-    observed = generate_standard_transition_matrix(states)
-    # Generate random prevalence ratios
-    prevalence_ratios = generate_random_prevalence_ratios(states, 2)
-    # Construct weighted transition matrix
-    weighted_transition_matrix = construct_weighted_transition_matrix(observed, prevalence_ratios)
-    # Generate initial state distribution using prevalence ratios
-    initial_distribution = generate_custom_initial_distribution(states, prevalence_ratios)
-    # Generate initial states for multiple agents
-    initial_states = generate_initial_states(weighted_transition_matrix, N, initial_distribution)
-    # Generate Markov chains for multiple agents
-    markov_chain = generate_markov_chains(weighted_transition_matrix, initial_states, T, N)
+    try:
+        # Type checking and value validation for input arguments
+        if not isinstance(states, int) or states <= 0:
+            raise ValueError("states must be a positive integer")
+        if not isinstance(N, int) or N <= 0:
+            raise ValueError("N must be a positive integer")
+        if not isinstance(T, int) or T <= 0:
+            raise ValueError("T must be a positive integer")
+        if not isinstance(missing_range, list) or len(missing_range) != 2 or not all(isinstance(val, float) for val in missing_range):
+            raise ValueError("missing_range must be a tuple of two floats")
+        if not isinstance(imputation, bool):
+            raise TypeError("imputation must be a boolean")
+        if not isinstance(optimization, bool):
+            raise TypeError("optimization must be a boolean")
+        if em_iterations is not None and (not isinstance(em_iterations, int) or em_iterations <= 0):
+            raise ValueError("em_iterations must be a positive integer or None")
+        if tol is not None and (not isinstance(tol, float) or tol < 0):
+            raise ValueError("tol must be a non-negative float or None")
+        # Initialize shared lists to store results
+        states_list = []
+        missing_list = []
+        emTime_list = []
+        KL_list = []
+        inaccuracy_list = []
+        popularity_list = []
+        agents_list = []
+        obs_list = []
+        imputed_list = []
+        em_list = []
+        time_list = []
+        imputed_time_list = []
+        
+        # Generate observed transition matrix
+        observed = generate_standard_transition_matrix(states)
+        # Generate random prevalence ratios
+        prevalence_ratios = generate_random_prevalence_ratios(states, 2)
+        # Construct weighted transition matrix
+        weighted_transition_matrix = construct_weighted_transition_matrix(observed, prevalence_ratios)
+        # Generate initial state distribution using prevalence ratios
+        initial_distribution = generate_custom_initial_distribution(states, prevalence_ratios)
+        # Generate initial states for multiple agents
+        initial_states = generate_initial_states(weighted_transition_matrix, N, initial_distribution)
+        # Generate Markov chains for multiple agents
+        markov_chain = generate_markov_chains(weighted_transition_matrix, initial_states, T, N)
 
-    # Calculate state probabilities
-    probs = np.array([np.sum(markov_chain.values == state) / markov_chain.values.size for state in range(states)])
-    state_probabilities = pd.DataFrame({'State': np.arange(0, states), 'Probability': probs})
+        # Calculate state probabilities
+        probs = np.array([np.sum(markov_chain.values == state) / markov_chain.values.size for state in range(states)])
+        state_probabilities = pd.DataFrame({'State': np.arange(0, states), 'Probability': probs})
+        
+        # Iterate over different popularity orders and missing data percentages
+        for popularity, pct in list(itertools.product([True, False], missing_range)):
+                # Introduce popularity bias to the Markov chain
+                result = pd.DataFrame(introduce_popularity_bias(markov_chain, state_probabilities, pct, N, T, popularity))
+                start = time.time()  # Start time of execution
+                estimated = extract_transition_matrix(result, states)  # Estimate transition matrix
+                end = time.time()  # End time of execution
+                
+                # Perform imputation if requested
+                final = bmc.forward_algorithm(result, estimated, T, states) if imputation else None
+                estimated_imputed = extract_transition_matrix(final, states) if imputation else None
+                end_impute = time.time() if imputation else None
+                
+                # Perform optimization if requested
+                estimated_em = bmc.em_algorithm(result, N, T, states, em_iterations, tol) if optimization else None
+                end_em = time.time() if optimization else None
+                
+                # Append results to shared lists using popAppend function
+                states_list, missing_list, emTime_list, KL_list, inaccuracy_list, agents_list, obs_list, popularity_list, imputed_list, \
+                    em_list, time_list, imputed_time_list = popAppend(
+                        states_list, states, missing_list, pct, time_list, end - start, KL_list,
+                        kl_divergence(estimated, observed, states), inaccuracy_list,
+                        np.linalg.norm(estimated - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)), agents_list, N, obs_list, T, 
+                        popularity_list, popularity, imputed_list if imputation else None,
+                        np.linalg.norm(estimated_imputed - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if imputation else None,
+                        em_list if optimization else None,
+                        np.linalg.norm(estimated_em - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if optimization else None,
+                        emTime_list, end_em - start if optimization else None, imputed_time_list, end_impute - start if imputation else None)
+        
+        # Return tuple of updated shared lists
+        return states_list, missing_list, emTime_list, KL_list, inaccuracy_list, agents_list, obs_list, popularity_list, \
+            imputed_list, em_list, time_list, imputed_time_list
     
-    # Iterate over different popularity orders and missing data percentages
-    for popularity, pct in list(itertools.product([True, False], np.linspace(pct_range[0], pct_range[1]))):
-            # Introduce popularity bias to the Markov chain
-            result = pd.DataFrame(introduce_popularity_bias(markov_chain, state_probabilities, pct, N, T, popularity))
-            start = time.time()  # Start time of execution
-            estimated = extract_transition_matrix(result, states)  # Estimate transition matrix
-            end = time.time()  # End time of execution
-            
-            # Perform imputation if requested
-            final = forward_algorithm(result, estimated, T, states) if imputation else None
-            estimated_imputed = extract_transition_matrix(final, states) if imputation else None
-            end_impute = time.time() if imputation else None
-            
-            # Perform optimization if requested
-            estimated_em = em_algorithm(result, N, T, states, em_iterations, tol) if optimization else None
-            end_em = time.time() if optimization else None
-            
-            # Append results to shared lists using popAppend function
-            states_list, missing_list, emTime_list, KL_list, inaccuracy_list, agents_list, obs_list, popularity_list, imputed_list, \
-                em_list, time_list, imputed_time_list = popAppend(
-                    states_list, states, missing_list, pct, time_list, end - start, KL_list,
-                    kl_divergence(estimated, observed, states), inaccuracy_list,
-                    np.linalg.norm(estimated - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)), agents_list, N, obs_list, T, 
-                    popularity_list, popularity, imputed_list if imputation else None,
-                    np.linalg.norm(estimated_imputed - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if imputation else None,
-                    em_list if optimization else None,
-                    np.linalg.norm(estimated_em - observed)/(np.sqrt(2*states)*np.linalg.norm(observed)) if optimization else None,
-                    emTime_list, end_em - start if optimization else None, imputed_time_list, end_impute - start if imputation else None)
-    
-    # Return tuple of updated shared lists
-    return states_list, missing_list, emTime_list, KL_list, inaccuracy_list, agents_list, obs_list, popularity_list, \
-           imputed_list, em_list, time_list, imputed_time_list
+    except Exception as e:
+        raise ValueError(f"Error in processing outlier scenario: {e}")
