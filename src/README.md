@@ -30,6 +30,11 @@ To use the bias simulation files, follow these steps:
 ## Requirements
 
 - Python
+- Pandas
+- Numpy
+- Itertools
+- Random
+- Time
 - bmcUtils.py: found in Markov-Chains/utils
 - bmcSpecial.py: found in Markov-Chains/utils
 
