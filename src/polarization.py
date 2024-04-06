@@ -1,3 +1,47 @@
+"""
+polarization_simulation.py
+
+This script implements functions to simulate polarization scenarios and append results to shared lists.
+It introduces missing data unbiased on state polarization, calculates KL divergence and inaccuracy, and appends results after each run.
+
+Author: Ben Harwood
+Contact: bharwood@syr.edu
+Website: https://github.com/bharwood-data/Markov-Chains
+
+Functions:
+    divide_list_into_groups: Randomly divides a list into multiple groups.
+    divide_agents: Divides a list of agents into polarized and unaffiliated groups unbiased on the unaffiliated percentage.
+    sample_states: Randomly samples unique states from a list without replacement.
+    inter_polar: Adds inter-group connections to a polarization matrix.
+    insert_polarized: Inserts a group transition matrix into a polarization matrix.
+    group_states: Samples states for a group unbiased on the number of states and clusters.
+    generate_polar_matrix: Generates a polarized transition matrix.
+    assign_states_to_agents: Assigns states to agents unbiased on the given groups and state clusters.
+    introduce_polarization: Introduces polarization to a list of agents and generates Markov chains.
+    polar_append: Appends polarization scenario results to shared lists.
+    process_polar: Runs polarization scenario simulations and appends results.
+
+Dependencies:
+    - pandas: A powerful data manipulation library.
+    - numpy: A fundamental package for scientific computing with Python.
+    - time: A module providing various time-related functions.
+    - itertools: A module providing iterators for efficient looping.
+    - random: A module providing functions for generating random numbers.
+    - bmcUtils: A module containing utility functions for bias simulation.
+    - bmcSpecial: A module containing special functions for bias simulation.
+
+    - generate_standard_transition_matrix: Generates a standard transition matrix.
+    - generate_initial_states: Generates initial states for multiple agents.
+    - generate_markov_chains: Generates Markov chains for multiple agents.
+    - apply_self_selection_bias: Applies self-selection bias to Markov chains.
+    - introduce_mcar_missing_data: Introduces missing completely at random (MCAR) data to a DataFrame.
+    - extract_transition_matrix: Extracts a transition matrix from a DataFrame.
+    - kl_divergence: Calculates the Kullback-Leibler divergence.
+    - is_valid_transition_matrix: Checks if a matrix is a valid transition matrix.
+    - forward_algorithm: Performs forward algorithm for imputation.
+    - em_algorithm: Performs EM algorithm for optimization.
+"""
+
 import pandas as pd
 import numpy as np
 import time
